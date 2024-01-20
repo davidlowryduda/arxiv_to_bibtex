@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<!--
+  This is part of arxiv_to_bibtex, a set of utilities written by David Lowry-Duda <david@lowryduda.com>.
+  See https://github.com/davidlowryduda/arxiv_to_bibtex for more.
+
+  This code is not deep and I make it available under my default, standard license, GPL3+.
+  I note that there is *nothing* deep in this code.
+
+  # **********************************************************************
+  #  This is part of arxiv_to_bibtex, simple bibtex tools for the arxiv
+  #       Copyright (c) 2024 David Lowry-Duda <david@lowryduda.com>
+  #       All Rights Reserved.
+  #
+  # This program is free software: you can redistribute it and/or modify
+  # it under the terms of the GNU General Public License as published by
+  # the Free Software Foundation, either version 3 of the License, or
+  # (at your option) any later version.
+  #
+  # This program is distributed in the hope that it will be useful,
+  # but WITHOUT ANY WARRANTY; without even the implied warranty of
+  # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  # GNU General Public License for more details.
+  #
+  # You should have received a copy of the GNU General Public License
+  # along with this program.  If not, see
+  #                 <http://www.gnu.org/licenses/>.
+  # **********************************************************************
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>arXiv to BibTeX Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 5px;
+            margin-top: 5px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #output {
+            white-space: pre-wrap;
+            margin-top: 20px;
+        }
+
+        #copyButton {
+            background-color: #008CBA;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        #copyButton:hover {
+            background-color: #00688B;
+        }
+    </style>
+</head>
+<body>
+    <h1>arXiv to BibTeX Converter</h1>
+    <label for="arxivUrls">Enter arXiv URLs (separated by commas):</label>
+    <p> This pings arXiv's API and might take a couple of seconds. Please don't abuse their trust. </p>
+    <textarea id="arxivUrls" rows="4" cols="50"></textarea>
+    <br>
+    <button onclick="convertToBibtex()">Convert to BibTeX</button>
+    <br>
+    <label for="output">BibTeX:</label>
+    <textarea id="output" rows="10" cols="50" readonly></textarea>
+    <button id="copyButton" onclick="copyToClipboard()">Copy to Clipboard</button>
+
+    <script>
+        function convertToBibtex() {
+            var arxivUrls = document.getElementById("arxivUrls").value.split(',');
+            var outputTextarea = document.getElementById("output");
+            outputTextarea.value = "";  // Clear previous content
+
+            // Compute arxiv_id_list by extracting identifiers from each URL
+            var arxiv_id_list = arxivUrls.map(function (url) {
+                return extractArxivIdentifier(url.trim());
+            }).join(',');
+
+            // Fetch all entries from the API at once
+            fetch(`https://export.arxiv.org/api/query?id_list=${arxiv_id_list}`)
+                .then(response => response.text())
+                .then(xmlString => {
+                    var parser = new DOMParser();
+                    var xmlDoc = parser.parseFromString(xmlString, "text/xml");
+
+                    // Iterate through each entry in the response XML
+                    var entries = xmlDoc.querySelectorAll('entry');
+                    entries.forEach(function (entry) {
+                        processArxivEntry(entry);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching arXiv entries:', error);
+                });
+        }
+
+        function processArxivEntry(entry) {
+            var title = entry.querySelector('title').textContent;
+            var authors = Array.from(entry.querySelectorAll('author name')).map(author => author.textContent);
+            var arxiv_doi = entry.querySelector('id').textContent.split('/').pop();
+            var primary_category = entry.querySelector('category').getAttribute('term');
+            var url = entry.querySelector('link[rel="alternate"]').getAttribute('href');
+            var publication_date = entry.querySelector('published').textContent;
+            var publication_year = new Date(publication_date).getFullYear();
+
+            var bibtexString = `@article{${authors[0].toLowerCase().replace(/[\s\-.,]+/g, '')}${publication_year}${firstSignificantWordInTitle(title)},\n`;
+            bibtexString += `  title={${title}},\n`;
+            bibtexString += `  author={${authors.join(' and ')}},\n`;
+            bibtexString += `  year={${publication_year}},\n`;
+            bibtexString += `  howpublished="\\url{${url}}",\n`;
+            bibtexString += `  note={{arXiv:${primary_category}:${arxiv_doi}}},\n`;
+            bibtexString += `}\n\n`;
+
+            var outputTextarea = document.getElementById("output");
+            outputTextarea.value += bibtexString;
+        }
+
+        function extractArxivIdentifier(url) {
+            var match = url.match(/\/(\d+\.\d+|[a-z\-]+\/\d+)(v\d+)?$/i);
+            return match ? match[1] : "";
+        }
+
+        function firstSignificantWordInTitle(title) {
+            var words = title.split(/\s+/);
+            var unimportantWords = ["a", "an", "the", "and", "or", "but",
+                    "for", "in", "with", "to", "of", "on", "at", "by", "from",
+                    "up", "down", "about", "after", "before", "over", "under",
+                    "between", "through", "into", "out", "during", "since",
+                    "until", "upon", "around", "throughout", "as", "if",
+                    "though", "because", "while", "when", "where", "whether",
+                    "while", "not", "only", "just", "both", "neither",
+                    "either", "all", "some", "few", "many", "most", "other",
+                    "another", "such", "this", "that", "these", "those", "one",
+                    "two", "three", "four", "five", "six", "seven", "eight",
+                    "nine", "ten"];
+            for (var i = 0; i < words.length; i++) {
+                var word = words[i].toLowerCase();
+                if (!unimportantWords.includes(word)) {
+                    return word.replace(/[\s\-.,]+/g, '');
+                }
+            }
+            // If no significant word is found, return an empty string
+            return "";
+        }
+    </script>
+</body>
+</html>
