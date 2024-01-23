@@ -26,4 +26,5 @@ This just activates the CLI.
 from arxiv_to_bibtex.cli import main_cli
 
 
-main_cli()
+if __name__ == "__main__":
+    main_cli()
