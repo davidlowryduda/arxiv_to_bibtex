@@ -83,12 +83,19 @@
         #copyButton:hover {
             background-color: #00688B;
         }
+
+        #warningMessage {
+            color: red;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
     <h1>arXiv to BibTeX Converter</h1>
     <label for="arxivUrls">Enter arXiv URLs (separated by commas):</label>
     <p> This pings arXiv's API and might take a couple of seconds. Please don't abuse their trust. </p>
+    <div id="warningMessage"></div>
     <textarea id="arxivUrls" rows="4" cols="50"></textarea>
     <br>
     <button onclick="convertToBibtex()">Convert to BibTeX</button>
@@ -98,10 +105,32 @@
     <button id="copyButton" onclick="copyToClipboard()">Copy to Clipboard</button>
 
     <script>
+        var incooldown = false;
+
         function convertToBibtex() {
+            if (incooldown) {
+                // Display a warning message to the user
+                var warningMessage = document.getElementById("warningMessage");
+                warningMessage.textContent = 'Please wait before converting again.';
+
+                // Clear the warning message after a few seconds
+                setTimeout(function () {
+                    warningMessage.textContent = '';
+                }, 5000);
+
+                console.log('Please wait before converting again.');
+                return;
+            }
+
             var arxivUrls = document.getElementById("arxivUrls").value.split(',');
             var outputTextarea = document.getElementById("output");
             outputTextarea.value = "";  // Clear previous content
+
+            // Set cooldown period
+            incooldown = true;
+            setTimeout(function () {
+                incooldown = false;
+            }, 10000);
 
             // Compute arxiv_id_list by extracting identifiers from each URL
             var arxiv_id_list = arxivUrls.map(function (url) {
