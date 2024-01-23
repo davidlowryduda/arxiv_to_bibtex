@@ -1,7 +1,5 @@
 """
-arxiv_to_bibtex.py - a simple tool to get bibtex from arxiv ids
-
-This is really a super tiny wrapper around the arXiv API.
+cli.py - commandline interface
 
 # **********************************************************************
 #  This is arxiv_to_bibtex, a simple tool to get bibtex from arxiv ids.
@@ -23,4 +21,38 @@ This is really a super tiny wrapper around the arXiv API.
 #                 <http://www.gnu.org/licenses/>.
 # **********************************************************************
 """
-__VERSION__ = "0.5"
+import argparse
+
+
+from .arxiv import arxiv_to_bibtex
+
+
+def _flatten(lst):
+    ret = []
+    for item in lst:
+        if isinstance(item, list):
+            ret.extend(_flatten(item))
+        else:
+            ret.append(item)
+    return ret
+
+
+def main_cli():
+    parser = argparse.ArgumentParser(
+        description="Generate BibTeX from an arXiv URL",
+        epilog=(
+            "See https://github.com/davidlowryduda/arxiv_to_bibtex for more.\n"
+            "Report bugs to David Lowry-Duda <david@lowryduda.com>"
+        ),
+    )
+    parser.add_argument(
+        "--url",
+        nargs="+",
+        required=True,
+        action="append",
+        help="arXiv URL to generate BibTeX for. Multiple urls can be given, either with one --url or with multiple."
+    )
+    args = parser.parse_args()
+    bibtex_string_list = arxiv_to_bibtex(_flatten(args.url))
+    for bibtex_string in bibtex_string_list:
+        print(bibtex_string)

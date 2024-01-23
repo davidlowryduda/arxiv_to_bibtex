@@ -1,7 +1,5 @@
 """
-arxiv_to_bibtex.py - a simple tool to get bibtex from arxiv ids
-
-This is really a super tiny wrapper around the arXiv API.
+arxiv.py - functions to query the arxiv API
 
 # **********************************************************************
 #  This is arxiv_to_bibtex, a simple tool to get bibtex from arxiv ids.
@@ -23,93 +21,16 @@ This is really a super tiny wrapper around the arXiv API.
 #                 <http://www.gnu.org/licenses/>.
 # **********************************************************************
 """
-import argparse
 import datetime
-import requests
-import string
-import time
-
-
-from bs4 import BeautifulSoup
-from dataclasses import dataclass
+from typing import Callable
 from urllib.parse import urlparse
 
 
-@dataclass
-class BibtexRecord:
-    """
-    A single bibtex record.
-    """
-    authors: list[str]
-    arxiv_doi: str
-    primary_category: str
-    title: str
-    url: str
-    publication_date: datetime.date
-    updated_date: datetime.date
+import requests
+from bs4 import BeautifulSoup
 
 
-def first_significant_word(title: str) -> str:
-    """
-    Extract the first nontrivial word from a title.
-
-    Args:
-        title (str): The input title.
-
-    Returns:
-        str: The first nontrivial word.
-    """
-    unimportant_words = [
-        "a", "an", "the", "and", "or", "but", "towards", "for", "in", "with",
-        "to", "of", "on", "at", "by", "from", "up", "down", "about", "after",
-        "before", "over", "under", "between", "through", "into", "out",
-        "during", "since", "until", "upon", "around", "throughout", "as", "if",
-        "though", "because", "while", "when", "where", "whether", "while",
-        "not", "only", "just", "both", "neither", "either", "all", "some",
-        "few", "many", "most", "other", "another", "such", "this", "that",
-        "these", "those", "one", "two", "three", "four", "five", "six",
-        "seven", "eight", "nine", "ten"
-    ]
-    words = title.split()
-    for word in words:
-        if word.lower() not in unimportant_words:
-            return ''.join(
-                [l for l in word if l not in string.punctuation]
-            )
-    return ""
-
-
-def standard_bibtex_formatter(r: BibtexRecord) -> str:
-    """
-    Generate a standard BibTeX string from a BibtexRecord.
-
-    Args:
-        r (BibtexRecord): The input BibtexRecord.
-
-    Returns:
-        str: The BibTeX string.
-    """
-    # Format authors
-    author_str = ' and '.join(r.authors)
-
-    # Create citation key
-    first_important_word = first_significant_word(r.title)
-    first_author_last_name = r.authors[0].split()[-1].lower().strip(',. ')
-    first_author_stripped_name = ''.join(
-        [l for l in first_author_last_name if l not in string.punctuation]
-    )
-    citation_key = f"{first_author_stripped_name}{r.publication_date.year}{first_important_word.lower()}"
-
-    # Format BibTeX string
-    bibtex_str = f"@misc{{{citation_key},\n"
-    bibtex_str += f"      title={{{r.title}}},\n"
-    bibtex_str += f"      author={{{author_str}}},\n"
-    bibtex_str += f"      year={{{r.publication_date.year}}},\n"
-    bibtex_str += f"      howpublished=\"\\url{{{r.url}}}\",\n"
-    bibtex_str += f"      note={{arXiv:{r.primary_category}:{r.arxiv_doi}}},\n"
-    bibtex_str += "}"
-
-    return bibtex_str
+from .bibtex_record import BibtexRecord, standard_bibtex_formatter
 
 
 def extract_arxiv_identifier(url: str) -> str:
@@ -145,7 +66,7 @@ def _query_arxiv_raw(arxiv_ids: str) -> requests.Response:
         requests.Response: The raw response from the arXiv API.
     """
     api_url = f"https://export.arxiv.org/api/query?id_list={arxiv_ids}"
-    response = requests.get(api_url)
+    response = requests.get(api_url, timeout=10.0)  # timeout after 10s
     # Check if the request was unsuccessful (status code 200)
     if response.status_code != 200:
         response.raise_for_status()
@@ -234,7 +155,10 @@ def query_arxiv(arxiv_ids: list[str]) -> list[BibtexRecord]:
     return bibtex_records
 
 
-def arxiv_to_bibtex(urls: list[str], formatter=standard_bibtex_formatter) -> str:
+def arxiv_to_bibtex(
+            urls: list[str],
+            formatter: Callable[[BibtexRecord], str] = standard_bibtex_formatter,
+        ) -> list[str]:
     """
     Generate a BibTeX string from an arXiv URL.
 
@@ -253,42 +177,7 @@ def arxiv_to_bibtex(urls: list[str], formatter=standard_bibtex_formatter) -> str
             raise ValueError("Invalid arXiv URL")
         ids.append(arxiv_id)
     bibtex_records = query_arxiv(ids)
-    bibtex_string = []
+    bibtex_strings = []
     for bibtex_record in bibtex_records:
-        bibtex_string.append(formatter(bibtex_record))
-    return bibtex_string
-
-
-def _flatten(lst):
-    ret = []
-    for item in lst:
-        if isinstance(item, list):
-            ret.extend(_flatten(item))
-        else:
-            ret.append(item)
-    return ret
-
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Generate BibTeX from an arXiv URL",
-        epilog=(
-            "See https://github.com/davidlowryduda/arxiv_to_bibtex for more.\n"
-            "Report bugs to David Lowry-Duda <david@lowryduda.com>"
-        ),
-    )
-    parser.add_argument(
-        "--url",
-        nargs="+",
-        required=True,
-        action="append",
-        help="arXiv URL to generate BibTeX for. Multiple urls can be given, either with one --url or with multiple."
-    )
-    args = parser.parse_args()
-    bibtex_string_list = arxiv_to_bibtex(_flatten(args.url))
-    for bibtex_string in bibtex_string_list:
-        print(bibtex_string)
-
-
-if __name__ == "__main__":
-    main()
+        bibtex_strings.append(formatter(bibtex_record))
+    return bibtex_strings

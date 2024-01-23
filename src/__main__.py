@@ -1,7 +1,7 @@
 """
-arxiv_to_bibtex.py - a simple tool to get bibtex from arxiv ids
+__main__.py - an entry point
 
-This is really a super tiny wrapper around the arXiv API.
+This just activates the CLI.
 
 # **********************************************************************
 #  This is arxiv_to_bibtex, a simple tool to get bibtex from arxiv ids.
@@ -23,4 +23,7 @@ This is really a super tiny wrapper around the arXiv API.
 #                 <http://www.gnu.org/licenses/>.
 # **********************************************************************
 """
-__VERSION__ = "0.5"
+from src.cli import main_cli
+
+
+main_cli()
