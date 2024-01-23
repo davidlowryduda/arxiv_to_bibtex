@@ -34,4 +34,4 @@ Issues = "https://github.com/davidlowryduda/arxiv_to_bibtex/issues"
 
 
 [project.scripts]
-arxiv_to_bibtex = "arxiv_to_bibtex.__main__:main"
+arxiv_to_bibtex = "arxiv_to_bibtex.__main__:main_cli"
