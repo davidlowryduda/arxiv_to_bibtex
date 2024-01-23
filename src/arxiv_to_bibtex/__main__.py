@@ -23,7 +23,7 @@ This just activates the CLI.
 #                 <http://www.gnu.org/licenses/>.
 # **********************************************************************
 """
-from src.cli import main_cli
+from arxiv_to_bibtex.cli import main_cli
 
 
 main_cli()
