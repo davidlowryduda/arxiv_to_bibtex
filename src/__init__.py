@@ -23,4 +23,12 @@ This is really a super tiny wrapper around the arXiv API.
 #                 <http://www.gnu.org/licenses/>.
 # **********************************************************************
 """
+from . import arxiv
+from . import bibtex_record
+from . import cli
+
+
+__all__ = ["arxiv", "bibtex_record", "cli"]
+
+
 __VERSION__ = "0.5"

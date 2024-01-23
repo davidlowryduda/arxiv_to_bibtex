@@ -33,6 +33,57 @@ from bs4 import BeautifulSoup
 from .bibtex_record import BibtexRecord, standard_bibtex_formatter
 
 
+def query_arxiv(arxiv_ids: list[str]) -> list[BibtexRecord]:
+    """
+    Query the arXiv API and return a BibtexRecord for the specified arXiv
+    identifiers.
+
+    Note that queries are batched together! It is better to give a list of
+    arxiv_ids to this method than to call it repeatedly. In order to find
+    arxiv_ids from a URL, it may be useful to call `extract_arxiv_identifier`.
+
+    Args:
+        arxiv_ids (list[str]): The arXiv identifiers.
+
+    Returns:
+        list[BibtexRecord]: The BibtexRecords for the specified arXiv
+        identifiers
+    """
+    if isinstance(arxiv_ids, str):  # common mistake
+        arxiv_ids = [arxiv_ids]
+    raw_response = _query_arxiv_raw(','.join(arxiv_ids))
+    bibtex_records = _construct_bibtex(raw_response.text)
+    return bibtex_records
+
+
+def arxiv_to_bibtex(
+            urls: list[str],
+            formatter: Callable[[BibtexRecord], str] = standard_bibtex_formatter,
+        ) -> list[str]:
+    """
+    Generate a BibTeX string from an arXiv URL.
+
+    Args:
+        urls list[str]: A list of arxiv URLs.
+        formatter (function): A function to format the BibTeX record. Default
+        is standard_bibtex_formatter.
+
+    Returns:
+        str: The BibTeX string.
+    """
+    ids = []
+    for url in urls:
+        arxiv_id = extract_arxiv_identifier(url)
+        if not arxiv_id:
+            raise ValueError("Invalid arXiv URL")
+        ids.append(arxiv_id)
+    bibtex_records = query_arxiv(ids)
+    bibtex_strings = []
+    for bibtex_record in bibtex_records:
+        bibtex_strings.append(formatter(bibtex_record))
+    return bibtex_strings
+
+
 def extract_arxiv_identifier(url: str) -> str:
     """
     Extract the arXiv identifier from an arXiv URL.
@@ -136,48 +187,3 @@ def _parse_date(date_string: str) -> datetime.date:
     year, month, day = map(int, date_parts)
 
     return datetime.date(year, month, day)
-
-
-def query_arxiv(arxiv_ids: list[str]) -> list[BibtexRecord]:
-    """
-    Query the arXiv API and return a BibtexRecord for the specified arXiv
-    identifiers.
-
-    Args:
-        arxiv_ids (list[str]): The arXiv identifiers.
-
-    Returns:
-        list[BibtexRecord]: The BibtexRecords for the specified arXiv
-        identifiers
-    """
-    raw_response = _query_arxiv_raw(','.join(arxiv_ids))
-    bibtex_records = _construct_bibtex(raw_response.text)
-    return bibtex_records
-
-
-def arxiv_to_bibtex(
-            urls: list[str],
-            formatter: Callable[[BibtexRecord], str] = standard_bibtex_formatter,
-        ) -> list[str]:
-    """
-    Generate a BibTeX string from an arXiv URL.
-
-    Args:
-        urls list[str]: A list of arxiv URLs.
-        formatter (function): A function to format the BibTeX record. Default
-        is standard_bibtex_formatter.
-
-    Returns:
-        str: The BibTeX string.
-    """
-    ids = []
-    for url in urls:
-        arxiv_id = extract_arxiv_identifier(url)
-        if not arxiv_id:
-            raise ValueError("Invalid arXiv URL")
-        ids.append(arxiv_id)
-    bibtex_records = query_arxiv(ids)
-    bibtex_strings = []
-    for bibtex_record in bibtex_records:
-        bibtex_strings.append(formatter(bibtex_record))
-    return bibtex_strings
